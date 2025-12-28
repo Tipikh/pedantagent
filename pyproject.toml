@@ -1,0 +1,13 @@
+[project]
+name = "pedantagent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9.6"
+dependencies = [
+    "playwright>=1.57.0",
+    "rich>=14.2.0",
+]
+
+[project.scripts]
+pedantagent = "pedantagent.cli:main"
