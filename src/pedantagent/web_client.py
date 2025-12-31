@@ -60,6 +60,7 @@ class PedantixWebClient:
         self.page.goto(url, wait_until="domcontentloaded")
         self.page.wait_for_selector(self.guess_input, timeout=15_000)
         # Ensure game DOM is present too
+        self.page.wait_for_selector(self.title_container, timeout=15_000)
         self.page.wait_for_selector(self.article_container, timeout=15_000)
 
     def guess(self, word: str) -> None:
@@ -73,45 +74,46 @@ class PedantixWebClient:
         """
         payload = self.page.evaluate(
             """
-            (titleSel, articleSel) => {
-              function normText(s) {
+            ({ titleSel, articleSel }) => {
+            function normText(s) {
                 if (!s) return "";
-                // Convert NBSP to space, collapse whitespace, trim.
                 return s.replace(/\\u00A0/g, " ").replace(/\\s+/g, " ").trim();
-              }
+            }
 
-              function readSpan(el, inTitle) {
+            function readSpan(el, inTitle) {
                 const text = normText(el.innerText);
                 const cs = window.getComputedStyle(el);
 
-                // We rely on computed style (not attribute) to be robust.
                 return {
-                  id: el.id ? Number(el.id) : null,
-                  text: text.length ? text : null,
-                  inTitle: Boolean(inTitle),
-                  color: cs.color || "",
-                  backgroundColor: cs.backgroundColor || "",
-                  boxShadow: cs.boxShadow || "",
+                id: el.id ? Number(el.id) : null,
+                text: text.length ? text : null,
+                inTitle: Boolean(inTitle),
+                color: cs.color || "",
+                backgroundColor: cs.backgroundColor || "",
+                boxShadow: cs.boxShadow || "",
                 };
-              }
+            }
 
-              const titleRoot = document.querySelector(titleSel);
-              const articleRoot = document.querySelector(articleSel);
+            const titleRoot = document.querySelector(titleSel);
+            const articleRoot = document.querySelector(articleSel);
 
-              const titleSpans = titleRoot
+            const titleSpans = titleRoot
                 ? Array.from(titleRoot.querySelectorAll("span.w")).map(el => readSpan(el, true))
                 : [];
 
-              const articleSpans = articleRoot
+            const articleSpans = articleRoot
                 ? Array.from(articleRoot.querySelectorAll("span.w")).map(el => readSpan(el, false))
                 : [];
 
-              return { titleSpans, articleSpans };
+            return { titleSpans, articleSpans };
             }
             """,
-            self.title_container,
-            self.article_container,
+            {
+                "titleSel": self.title_container,
+                "articleSel": self.article_container,
+            },
         )
+
 
         title_tokens = payload.get("titleSpans", [])
         article_tokens = payload.get("articleSpans", [])
