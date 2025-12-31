@@ -14,7 +14,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max", type=int, default=200, help="Max guesses.")
     p.add_argument("--rate", type=float, default=1.0, help="Base seconds between guesses.")
     p.add_argument("--input", dest="guess_input", default=Selectors().guess_input, help="CSS selector for guess input.")
-    p.add_argument("--text", dest="text_container", default=Selectors().text_container, help="CSS selector for text container.")
+    p.add_argument("--title", dest="title_container", default=Selectors().title_container, help="CSS selector for title container.")
+    p.add_argument("--article", dest="article_container", default=Selectors().article_container, help="CSS selector for article container.")
     p.add_argument("--win", dest="win_marker", default="", help="Optional CSS selector for win marker.")
     return p
 
@@ -26,7 +27,8 @@ def main() -> int:
         max_guesses=int(args.max),
         selectors=Selectors(
             guess_input=args.guess_input,
-            text_container=args.text_container,
+            title_container=args.title_container,
+            article_container=args.article_container,
             win_marker=(args.win_marker or None),
         ),
         rate=Settings().rate.__class__(base_seconds=float(args.rate)),
@@ -41,7 +43,8 @@ def main() -> int:
         client = PedantixWebClient(
             page=page,
             guess_input=settings.selectors.guess_input,
-            text_container=settings.selectors.text_container,
+            title_container=settings.selectors.title_container,
+            article_container=settings.selectors.article_container,
         )
         client.open(settings.url)
 
