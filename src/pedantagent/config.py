@@ -4,9 +4,9 @@ from typing import Optional
 @dataclass(frozen=True)
 class Selectors:
     # À ajuster après (F12/Inspect)
-    guess_input: str = "input"
-    title_container: str = "body"
-    article_container: str = "body"
+    guess_input: str = "#guess"
+    title_container: str = "#wiki h2"
+    article_container: str = "#article"
     win_marker: Optional[str] = None  # ex: ".win" si tu trouves un marqueur stable
 
 @dataclass(frozen=True)
