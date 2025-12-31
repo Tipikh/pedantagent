@@ -17,6 +17,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--title", dest="title_container", default=Selectors().title_container, help="CSS selector for title container.")
     p.add_argument("--article", dest="article_container", default=Selectors().article_container, help="CSS selector for article container.")
     p.add_argument("--win", dest="win_marker", default="", help="Optional CSS selector for win marker.")
+    p.add_argument("--debug", action="store_true", help="Print game state info after each guess.")
+
     return p
 
 def main() -> int:

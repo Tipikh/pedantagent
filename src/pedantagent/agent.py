@@ -30,8 +30,19 @@ class PedantAgent:
     def _is_solved(self, state: GameState) -> bool:
         if self.client.has_win_marker(self.win_marker_selector):
             return True
-        low = state.snapshot.lower()
+        low = (state.title_text + " " + state.article_text).lower()
         return ("bravo" in low) or ("gagn" in low)
+    
+    def _debug_print(self, guess: str, state) -> None:
+        top_hints = ", ".join(f"{h.word}:{h.score:.2f}" for h in state.hint_words[:5])
+        print(
+            f"guess='{guess}' | "
+            f"title={state.title_revealed_count}/{state.title_token_count} | "
+            f"revealed={len(state.revealed_words)} | "
+            f"new_ids={len(state.new_reveal_ids)} | "
+            f"hints=[{top_hints}]"
+        )
+
 
     def run(self, words: Iterable[str], max_guesses: int = 200) -> RunResult:
         guesses = 0
@@ -48,6 +59,9 @@ class PedantAgent:
             self.client.guess(w)
             self._sleep()
             state = self.client.read_state()
+            
+            if self.debug:
+                self._debug_print(w, state)
 
             if self._is_solved(state):
                 return RunResult(guesses_made=guesses, solved=True)
