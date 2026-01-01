@@ -29,6 +29,8 @@ class GameState:
 
     title_revealed_count: int
     title_token_count: int
+    article_revealed_count: int
+    article_token_count: int
 
     # IDs of spans currently highlighted in green (newly revealed during last guess)
     new_reveal_ids: Tuple[int, ...]
@@ -133,7 +135,14 @@ class PedantixWebClient:
         title_text, title_revealed_count, title_token_count, title_revealed_words, title_hints, title_new = (
             self._process_tokens(title_tokens)
         )
-        article_text, _, _, article_revealed_words, article_hints, article_new = self._process_tokens(article_tokens)
+        (
+            article_text,
+            article_revealed_count,
+            article_token_count,
+            article_revealed_words,
+            article_hints,
+            article_new,
+        ) = self._process_tokens(article_tokens)
 
         # Merge & dedupe revealed words (keep order stable-ish by using dict)
         revealed_words = tuple(dict.fromkeys([*title_revealed_words, *article_revealed_words]).keys())
@@ -155,6 +164,8 @@ class PedantixWebClient:
             hint_words=hint_words,
             title_revealed_count=title_revealed_count,
             title_token_count=title_token_count,
+            article_revealed_count=article_revealed_count,
+            article_token_count=article_token_count,
             new_reveal_ids=new_reveal_ids,
         )
 

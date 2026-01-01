@@ -1,3 +1,5 @@
+from dotenv import load_dotenv 
+load_dotenv()
 import random
 import time
 import os
@@ -48,10 +50,15 @@ class PedantAgent:
         return ("bravo" in low) or ("gagn" in low)
     
     def _debug_print(self, guess: str, state) -> None:
+        total_tokens = state.title_token_count + state.article_token_count
+        total_revealed = state.title_revealed_count + state.article_revealed_count
+        reveal_ratio = (total_revealed / total_tokens) if total_tokens else 0.0
         top_hints = ", ".join(f"{h.word}:{h.score:.2f}" for h in state.hint_words[:5])
         print(
             f"guess='{guess}' | "
             f"title={state.title_revealed_count}/{state.title_token_count} | "
+            f"article={state.article_revealed_count}/{state.article_token_count} | "
+            f"reveal_ratio={reveal_ratio:.2%} | "
             f"revealed={len(state.revealed_words)} | "
             f"new_ids={len(state.new_reveal_ids)} | "
             f"hints=[{top_hints}]"
