@@ -1,8 +1,11 @@
 import random
 import time
+import os
 from dataclasses import dataclass
 from typing import Iterable, Optional
+from openai import OpenAI
 
+from .llm import PedantixLLM
 from .config import RateLimit
 from .web_client import PedantixWebClient, GameState
 
@@ -18,12 +21,21 @@ class PedantAgent:
         rate: RateLimit,
         win_marker_selector: Optional[str] = None,
         debug: bool = False,
+        llm_enabled: bool = False,
+        llm_model: str = "gpt-5-mini",
     ):
         self.client = client
         self.rate = rate
         self.win_marker_selector = win_marker_selector
         self.debug = debug
         self.tested: set[str] = set()
+        self.llm_enabled = llm_enabled
+        self.llm: PedantixLLM | None = None
+        if llm_enabled:
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise RuntimeError("OPENAI_API_KEY is not set")
+            self.llm = PedantixLLM(OpenAI(api_key=api_key), model=llm_model)
 
     def _sleep(self) -> None:
         dt = self.rate.base_seconds + random.uniform(self.rate.jitter_min, self.rate.jitter_max)
@@ -67,6 +79,15 @@ class PedantAgent:
                 print("TITLE:", state.title_text)
                 print("ARTICLE (first 2000 chars):", state.article_text[:2000])
                 print("-" * 80)
+                if self.llm_enabled and self.llm:
+                    sugg = self.llm.suggest_words(
+                        title_text=state.title_text,
+                        article_text=state.article_text,
+                        tested_words=sorted(self.tested),
+                        revealed_words=list(state.revealed_words),
+                    )
+                    print("LLM suggestions:", sugg.words)
+
 
             if self._is_solved(state):
                 return RunResult(guesses_made=guesses, solved=True)
