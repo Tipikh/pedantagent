@@ -20,6 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--debug", action="store_true", help="Print game state info after each guess.")
     p.add_argument("--llm", action="store_true", help="Use an LLM to propose new guesses (dry-run unless wired).")
     p.add_argument("--llm-model", default="gpt-5-mini", help="Model name for LLM suggestions.")
+    p.add_argument("--keep_open", action="store_true", help="Keep the browser open after the run ends.")
 
 
     return p
@@ -41,31 +42,41 @@ def main() -> int:
 
     words = warmup_words()
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=settings.headless)
-        page = browser.new_page()
+    p = sync_playwright().start()
+    browser = p.chromium.launch(headless=settings.headless)
+    page = browser.new_page()
 
-        client = PedantixWebClient(
-            page=page,
-            guess_input=settings.selectors.guess_input,
-            title_container=settings.selectors.title_container,
-            article_container=settings.selectors.article_container,
-        )
-        client.open(settings.url)
+    client = PedantixWebClient(
+        page=page,
+        guess_input=settings.selectors.guess_input,
+        title_container=settings.selectors.title_container,
+        article_container=settings.selectors.article_container,
+    )
+    client.open(settings.url)
 
-        agent = PedantAgent(
-            client=client,
-            rate=settings.rate,
-            win_marker_selector=settings.selectors.win_marker,
-            debug=args.debug,
-            llm_enabled=args.llm,
-            llm_model=args.llm_model,
-        )
+    agent = PedantAgent(
+        client=client,
+        rate=settings.rate,
+        win_marker_selector=settings.selectors.win_marker,
+        debug=args.debug,
+        llm_enabled=args.llm,
+        llm_model=args.llm_model,
+    )
 
-        print(f"[bold]pedantagent[/bold] — headless={settings.headless}, max={settings.max_guesses}, rate~{settings.rate.base_seconds}s")
-        res = agent.run(words=words, max_guesses=settings.max_guesses)
+    print(f"[bold]pedantagent[/bold] — headless={settings.headless}, max={settings.max_guesses}, rate~{settings.rate.base_seconds}s")
+    res = agent.run(words=words, max_guesses=settings.max_guesses)
 
-        print(f"Done. guesses={res.guesses_made} solved={res.solved}")
+    print(f"Done. guesses={res.guesses_made} solved={res.solved}")
+    if args.keep_open:
+        print("[bold]Browser left open[/bold] — press Enter to close it.")
+        try:
+            input()
+        finally:
+            browser.close()
+            p.stop()
+    else:
         browser.close()
+        p.stop()
+
 
     return 0
