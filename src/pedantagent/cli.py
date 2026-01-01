@@ -54,6 +54,7 @@ def main() -> int:
             client=client,
             rate=settings.rate,
             win_marker_selector=settings.selectors.win_marker,
+            debug=args.debug,
         )
 
         print(f"[bold]pedantagent[/bold] — headless={settings.headless}, max={settings.max_guesses}, rate~{settings.rate.base_seconds}s")

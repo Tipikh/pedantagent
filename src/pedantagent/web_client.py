@@ -79,10 +79,20 @@ class PedantixWebClient:
                 if (!s) return "";
                 return s.replace(/\\u00A0/g, " ").replace(/\\s+/g, " ").trim();
             }
+            
+            function countHiddenLen(el) {
+                const s = el.textContent || "";
+                const nbspCount = (s.match(/\\u00A0/g) || []).length;
+                const spaceCount = (s.match(/ /g) || []).length;
+                return Math.max(nbspCount, spaceCount);
+}
 
             function readSpan(el, inTitle) {
+                const raw = el.textContent || "";
                 const text = normText(el.innerText);
-                const cs = window.getComputedStyle(el);
+                const cs = window.getComputedStyle(el);                
+                const isHidden = !text.length;   // après normalisation
+                const hiddenLen = isHidden ? countHiddenLen(el) : null;
 
                 return {
                 id: el.id ? Number(el.id) : null,
@@ -91,6 +101,7 @@ class PedantixWebClient:
                 color: cs.color || "",
                 backgroundColor: cs.backgroundColor || "",
                 boxShadow: cs.boxShadow || "",
+                hiddenLen,
                 };
             }
 
@@ -182,15 +193,35 @@ class PedantixWebClient:
             token_count += 1
 
             token_id = t.get("id")
-            text = t.get("text")  # already normalized or None
+            text = t.get("text")          # None si caché
+            hidden_len = t.get("hiddenLen")
             color = (t.get("color") or "").strip()
             bg = (t.get("backgroundColor") or "").strip()
+            in_title = bool(t.get("inTitle"))
 
+            prefix = "t" if in_title else "w"
+
+            # --- Cas 1 : mot totalement caché ---
             if text is None:
-                words_out.append("____")
+                words_out.append(
+                    PedantixWebClient._placeholder(token_id, hidden_len, prefix)
+                )
                 continue
 
-            # Visible token (either revealed or hint)
+            # --- Cas 2 : mot visible mais seulement comme hint (orange/rouge) ---
+            if PedantixWebClient._looks_like_hint(color):
+                words_out.append(
+                    PedantixWebClient._placeholder(token_id, hidden_len, prefix)
+                )
+                hint_words.append(
+                    HintWord(
+                        word=text.lower(),
+                        score=PedantixWebClient._hint_score_from_color(color),
+                    )
+                )
+                continue
+
+            # --- Cas 3 : vrai mot révélé ---
             words_out.append(text)
 
             # "New reveal" highlight (temporary green)
@@ -214,6 +245,24 @@ class PedantixWebClient:
         We avoid complicated punctuation rules for clarity.
         """
         return " ".join(words)
+    
+    @staticmethod
+    def _placeholder(
+        token_id: Optional[int],
+        hidden_len: Optional[int],
+        prefix: str = "w",
+    ) -> str:
+        """
+        Build a stable placeholder for hidden or hinted tokens.
+
+        Example:
+          ⟦w29~7⟧  -> word token id 29, approx length 7
+          ⟦t3⟧     -> title token id 3, unknown length
+        """
+        tid = token_id if token_id is not None else -1
+        if hidden_len and hidden_len > 0:
+            return f"⟦{prefix}{tid}~{hidden_len}⟧"
+        return f"⟦{prefix}{tid}⟧"
 
     @staticmethod
     def _looks_like_hint(color: str) -> bool:

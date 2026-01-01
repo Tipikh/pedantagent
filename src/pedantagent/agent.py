@@ -17,10 +17,12 @@ class PedantAgent:
         client: PedantixWebClient,
         rate: RateLimit,
         win_marker_selector: Optional[str] = None,
+        debug: bool = False,
     ):
         self.client = client
         self.rate = rate
         self.win_marker_selector = win_marker_selector
+        self.debug = debug
         self.tested: set[str] = set()
 
     def _sleep(self) -> None:
@@ -62,6 +64,9 @@ class PedantAgent:
             
             if self.debug:
                 self._debug_print(w, state)
+                print("TITLE:", state.title_text)
+                print("ARTICLE (first 2000 chars):", state.article_text[:2000])
+                print("-" * 80)
 
             if self._is_solved(state):
                 return RunResult(guesses_made=guesses, solved=True)
