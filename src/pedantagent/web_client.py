@@ -171,7 +171,16 @@ class PedantixWebClient:
 
     def has_win_marker(self, win_marker_selector: Optional[str]) -> bool:
         if not win_marker_selector:
-            return False
+            try:
+                tries = self.page.locator("#tries")
+                if tries.count() > 0:
+                    tries_text = (tries.first.inner_text() or "").strip()
+                    if tries_text:
+                        return True
+                success_visible = self.page.locator("#success[style*='opacity: 1']")
+                return success_visible.count() > 0
+            except Exception:
+                return False
         try:
             return self.page.locator(win_marker_selector).count() > 0
         except Exception:
