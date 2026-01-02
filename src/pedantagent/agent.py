@@ -85,9 +85,7 @@ class PedantAgent:
                         print("[LLM] Switching to LLM mode (warmup exhausted).")
                     continue
             else:
-                print("LLM mode (Test à suppr).")
                 if not pending_llm_words:
-                    print("Not pending llm words (Test à suppr).")
                     if not (self.llm_enabled and self.llm):
                         return RunResult(guesses_made=guesses, solved=False)
                     state = self.client.read_state()
@@ -99,7 +97,6 @@ class PedantAgent:
                         revealed_words=list(state.revealed_words),
                     )
                     pending_llm_words = list(sugg.words[:llm_batch_size])
-                    print(f"PENDING LLM WOOOOOORD : {sugg}  OKOK   (Test à suppr).")
                     if self.debug:
                         print("LLM suggestions:", pending_llm_words)
                     if not pending_llm_words:
