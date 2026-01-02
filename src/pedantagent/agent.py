@@ -48,11 +48,14 @@ class PedantAgent:
             return True
         low = (state.title_text + " " + state.article_text).lower()
         return ("bravo" in low) or ("gagn" in low)
-    
-    def _debug_print(self, guess: str, state) -> None:
+
+    def _reveal_ratio(self, state: GameState) -> float:
         total_tokens = state.title_token_count + state.article_token_count
         total_revealed = state.title_revealed_count + state.article_revealed_count
-        reveal_ratio = (total_revealed / total_tokens) if total_tokens else 0.0
+        return (total_revealed / total_tokens) if total_tokens else 0.0
+    
+    def _debug_print(self, guess: str, state: GameState) -> None:
+        reveal_ratio = self._reveal_ratio(state)
         top_hints = ", ".join(f"{h.word}:{h.score:.2f}" for h in state.hint_words[:5])
         print(
             f"guess='{guess}' | "
@@ -65,9 +68,41 @@ class PedantAgent:
         )
 
 
-    def run(self, words: Iterable[str], max_guesses: int = 200) -> RunResult:
+    def run(self, words: Iterable[str], max_guesses: int = 200, reveal_threshold: float = 0.10,llm_batch_size: int = 10,) -> RunResult:
         guesses = 0
-        for w in words:
+        warmup_iter = iter(words)
+        mode = "warmup"
+        pending_llm_words: list[str] = []
+
+        while True:
+            w: Optional[str] = None
+            if mode == "warmup":
+                try:
+                    w = next(warmup_iter)
+                except StopIteration:
+                    mode = "llm"
+                    continue
+            else:
+                if not pending_llm_words:
+                    if not (self.llm_enabled and self.llm):
+                        return RunResult(guesses_made=guesses, solved=False)
+                    state = self.client.read_state()
+                    sugg = self.llm.suggest_words(
+                        title_text=state.title_text,
+                        article_text=state.article_text,
+                        tested_words=sorted(self.tested),
+                        revealed_words=list(state.revealed_words),
+                    )
+                    pending_llm_words = list(sugg.words[:llm_batch_size])
+                    if self.debug:
+                        print("LLM suggestions:", pending_llm_words)
+                    if not pending_llm_words:
+                        return RunResult(guesses_made=guesses, solved=False)
+                w = pending_llm_words.pop(0)
+
+            if w is None:
+                continue
+            
             w = w.strip()
             if not w or w in self.tested:
                 continue
@@ -84,19 +119,13 @@ class PedantAgent:
             if self.debug:
                 self._debug_print(w, state)
                 print("TITLE:", state.title_text)
-                print("ARTICLE (first 2000 chars):", state.article_text[:2000])
+                print("ARTICLE:", state.article_text)
                 print("-" * 80)
-                if self.llm_enabled and self.llm:
-                    sugg = self.llm.suggest_words(
-                        title_text=state.title_text,
-                        article_text=state.article_text,
-                        tested_words=sorted(self.tested),
-                        revealed_words=list(state.revealed_words),
-                    )
-                    print("LLM suggestions:", sugg.words)
 
 
             if self._is_solved(state):
                 return RunResult(guesses_made=guesses, solved=True)
 
-        return RunResult(guesses_made=guesses, solved=False)
+            if mode == "warmup" and (self._reveal_ratio(state) >= reveal_threshold or w == words[-1]) :
+                mode = "llm"
+                pending_llm_words = []

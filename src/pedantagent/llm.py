@@ -21,8 +21,8 @@ _PEDANTIX_WORDS_SCHEMA = {
             "properties": {
                 "words": {
                     "type": "array",
-                    "minItems": 5,
-                    "maxItems": 5,
+                    "minItems": 10,
+                    "maxItems": 10,
                     "items": {"type": "string", "minLength": 2},
                 }
             },
@@ -82,10 +82,10 @@ CONTRAINTES STRICTES
 - Noms propres autorisés. Français uniquement. Tous distincts.
 
 TÂCHE
-Propose exactement 5 mots pertinents à tester ensuite.
+Propose exactement 10 mots pertinents à tester ensuite.
 
 FORMAT DE RÉPONSE (OBLIGATOIRE)
-Réponds STRICTEMENT sous forme JSON, avec UNE SEULE clé "words" (liste de 5 chaînes),
+Réponds STRICTEMENT sous forme JSON, avec UNE SEULE clé "words" (liste de 10 chaînes),
 et AUCUN autre texte.
 """
 
