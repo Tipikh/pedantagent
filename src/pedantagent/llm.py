@@ -4,32 +4,8 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Sequence
-
+from pydantic import BaseModel, conlist
 from openai import OpenAI
-
-
-# --------- JSON schema for structured outputs ---------
-
-_PEDANTIX_WORDS_SCHEMA = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "pedantix_word_suggestions",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "words": {
-                    "type": "array",
-                    "minItems": 10,
-                    "maxItems": 10,
-                    "items": {"type": "string", "minLength": 2},
-                }
-            },
-            "required": ["words"],
-        },
-    },
-}
 
 
 # --------- Prompt building ---------
@@ -84,9 +60,6 @@ CONTRAINTES STRICTES
 TÂCHE
 Propose exactement 10 mots pertinents à tester ensuite.
 
-FORMAT DE RÉPONSE (OBLIGATOIRE)
-Réponds STRICTEMENT sous forme JSON, avec UNE SEULE clé "words" (liste de 10 chaînes),
-et AUCUN autre texte.
 """
 
 
@@ -133,14 +106,23 @@ def filter_words(
     return out
 
 
-# --------- LLM client ---------
+
+# --------- Pydantic schema ---------
+
+class PedantixWordSuggestions(BaseModel):
+    words: conlist(str, min_length=10, max_length=10) # type: ignore
+
+
+# --------- Domain object ---------
 
 @dataclass(frozen=True)
 class PedantixSuggestions:
     words: List[str]
-    raw_json: str
     prompt: str
 
+
+
+# --------- LLM client ---------
 
 class PedantixLLM:
     def __init__(self, client: OpenAI, model: str = "gpt-5-nano"):
@@ -161,24 +143,20 @@ class PedantixLLM:
             tested_words=tested_words,
         )
 
-        resp = self.client.chat.completions.create(
+        resp = self.client.responses.parse(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            response_format=_PEDANTIX_WORDS_SCHEMA,
-            max_completion_tokens=200,
+            input=[{"role": "user", "content": prompt}],
+            text_format=PedantixWordSuggestions,
         )
-
-        raw = resp.choices[0].message.content or "{}"
-        data = json.loads(raw)
 
         tested = {normalize_word(w) for w in tested_words}
         revealed = {normalize_word(w) for w in revealed_words}
 
         filtered = filter_words(
-            data.get("words", []),
+            resp.output_parsed.words,
             tested=tested,
             revealed=revealed,
             min_len=3,
         )
 
-        return PedantixSuggestions(words=filtered, raw_json=raw, prompt=prompt)
+        return PedantixSuggestions(words=filtered, prompt=prompt)
