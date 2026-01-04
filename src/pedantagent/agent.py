@@ -15,6 +15,7 @@ from .web_client import PedantixWebClient, GameState
 class RunResult:
     guesses_made: int
     solved: bool
+    solution_url: Optional[str] = None
 
 class PedantAgent:
     def __init__(
@@ -43,12 +44,6 @@ class PedantAgent:
         dt = self.rate.base_seconds + random.uniform(self.rate.jitter_min, self.rate.jitter_max)
         time.sleep(max(0.0, dt))
 
-    def _is_solved(self, state: GameState) -> bool:
-        if self.client.has_win_marker(self.win_marker_selector):
-            return True
-        low = (state.title_text + " " + state.article_text).lower()
-        return ("bravo" in low) or ("gagn" in low)
-
     def _reveal_ratio(self, state: GameState) -> float:
         total_tokens = state.title_token_count + state.article_token_count
         total_revealed = state.title_revealed_count + state.article_revealed_count
@@ -68,7 +63,7 @@ class PedantAgent:
         )
 
 
-    def run(self, words: Iterable[str], max_guesses: int = 200, reveal_threshold: float = 0.10,llm_batch_size: int = 10,) -> RunResult:
+    def run(self, words: Iterable[str], max_guesses: int = 200, reveal_threshold: float = 0.20,llm_batch_size: int = 10,) -> RunResult:
         guesses = 0
         warmup_iter = iter(words)
         mode = "warmup"
@@ -117,17 +112,20 @@ class PedantAgent:
             self.tested.add(w)
             self.client.guess(w)
             self._sleep()
+            
             state = self.client.read_state()
+            
+            if state.solved:
+                if self.debug:
+                    print(f"SOLVED! solution_url={state.solution_url}")
+                return RunResult(guesses_made=guesses, solved=True, solution_url=state.solution_url)
+
             
             if self.debug:
                 self._debug_print(w, state)
                 print("TITLE:", state.title_text)
                 print("ARTICLE:", state.article_text)
                 print("-" * 80)
-
-
-            if self._is_solved(state):
-                return RunResult(guesses_made=guesses, solved=True)
 
             if mode == "warmup" and (self._reveal_ratio(state) >= reveal_threshold or w == words[-1]) :
                 mode = "llm"

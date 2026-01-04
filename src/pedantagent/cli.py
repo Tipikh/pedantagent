@@ -48,9 +48,7 @@ def main() -> int:
 
     client = PedantixWebClient(
         page=page,
-        guess_input=settings.selectors.guess_input,
-        title_container=settings.selectors.title_container,
-        article_container=settings.selectors.article_container,
+        selectors=settings.selectors,
     )
     client.open(settings.url)
 

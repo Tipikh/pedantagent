@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence, Tuple
 
+from .config import Settings, Selectors
 from playwright.sync_api import Page
 
 
@@ -35,6 +36,8 @@ class GameState:
     # IDs of spans currently highlighted in green (newly revealed during last guess)
     new_reveal_ids: Tuple[int, ...]
 
+    solved: bool
+    solution_url: Optional[str]
 
 class PedantixWebClient:
     """
@@ -46,17 +49,11 @@ class PedantixWebClient:
     - read a structured state (title + article tokens, revealed words, semantic hints)
     """
 
-    def __init__(
-        self,
-        page: Page,
-        guess_input: str,
-        title_container: str = "#wiki h2",
-        article_container: str = "#article",
-    ):
+    def __init__(self, page: Page,  selectors: Selectors):
         self.page = page
-        self.guess_input = guess_input
-        self.title_container = title_container
-        self.article_container = article_container
+        self.guess_input = selectors.guess_input
+        self.title_container = selectors.title_container
+        self.article_container = selectors.article_container
 
     def open(self, url: str) -> None:
         self.page.goto(url, wait_until="domcontentloaded")
@@ -118,7 +115,11 @@ class PedantixWebClient:
                 ? Array.from(articleRoot.querySelectorAll("span.w")).map(el => readSpan(el, false))
                 : [];
 
-            return { titleSpans, articleSpans };
+            // solved detection 
+            const solutionLink = document.querySelector("#success a#solution a[href]");
+            const solutionHref = solutionLink ? solutionLink.getAttribute("href") : null;
+            
+            return { titleSpans, articleSpans, solutionHref };
             }
             """,
             {
@@ -130,6 +131,8 @@ class PedantixWebClient:
 
         title_tokens = payload.get("titleSpans", [])
         article_tokens = payload.get("articleSpans", [])
+        solution_url = payload.get("solutionHref") or None
+        solved = solution_url is not None
 
         # Build a readable title/article text with placeholders for hidden words
         title_text, title_revealed_count, title_token_count, title_revealed_words, title_hints, title_new = (
@@ -167,24 +170,9 @@ class PedantixWebClient:
             article_revealed_count=article_revealed_count,
             article_token_count=article_token_count,
             new_reveal_ids=new_reveal_ids,
+            solved=solved,
+            solution_url=solution_url         
         )
-
-    def has_win_marker(self, win_marker_selector: Optional[str]) -> bool:
-        if not win_marker_selector:
-            try:
-                tries = self.page.locator("#tries")
-                if tries.count() > 0:
-                    tries_text = (tries.first.inner_text() or "").strip()
-                    if tries_text:
-                        return True
-                success_visible = self.page.locator("#success[style*='opacity: 1']")
-                return success_visible.count() > 0
-            except Exception:
-                return False
-        try:
-            return self.page.locator(win_marker_selector).count() > 0
-        except Exception:
-            return False
 
     # -----------------------
     # Internal helpers
