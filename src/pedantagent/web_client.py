@@ -218,15 +218,8 @@ class PedantixWebClient:
 
             # --- Cas 2 : mot visible mais seulement comme hint (orange/rouge) ---
             if PedantixWebClient._looks_like_hint(color):
-                words_out.append(
-                    PedantixWebClient._placeholder(token_id, hidden_len, prefix)
-                )
-                hint_words.append(
-                    HintWord(
-                        word=text.lower(),
-                        score=PedantixWebClient._hint_score_from_color(color),
-                    )
-                )
+                words_out.append(PedantixWebClient._hint_placeholder(text, hidden_len))
+                hint_words.append(HintWord(word=text.lower(), score=PedantixWebClient._hint_score_from_color(color),))
                 continue
 
             # --- Cas 3 : vrai mot révélé ---
@@ -236,12 +229,8 @@ class PedantixWebClient:
             if bg == HIGHLIGHT_GREEN_BG and isinstance(token_id, int):
                 new_reveal_ids.append(token_id)
 
-            # Decide if it's likely a semantic hint (colored orange/red) vs a normal revealed word
-            if PedantixWebClient._looks_like_hint(color):
-                hint_words.append(HintWord(word=text.lower(), score=PedantixWebClient._hint_score_from_color(color)))
-            else:
-                revealed_count += 1
-                revealed_words.append(text.lower())
+            revealed_count += 1
+            revealed_words.append(text.lower())
 
         reconstructed = PedantixWebClient._reconstruct_text(words_out)
         return reconstructed, revealed_count, token_count, revealed_words, hint_words, new_reveal_ids
@@ -271,6 +260,27 @@ class PedantixWebClient:
         if hidden_len and hidden_len > 0:
             return f"⟦{prefix}{tid}~{hidden_len}⟧"
         return f"⟦{prefix}{tid}⟧"
+
+    @staticmethod
+    def _hint_placeholder(
+        hint_word: str,
+        approx_len: Optional[int],
+    ) -> str:
+        """
+        Format a semantic hint token inserted into the reconstructed text.
+
+        Example:
+          ⟨nation?~5⟩
+          ⟨souveraineté?⟩
+        """
+        w = (hint_word or "").strip()
+        if not w:
+            return "⟨?⟩"
+
+        # Prefer provided length; fallback to the displayed hint word length
+        n = approx_len if (approx_len is not None and approx_len > 0) else len(w)
+        return f"⟨{w}?~{n}⟩"
+
 
     @staticmethod
     def _looks_like_hint(color: str) -> bool:
@@ -318,3 +328,4 @@ class PedantixWebClient:
             return (r, g, b)
         except ValueError:
             return None
+
