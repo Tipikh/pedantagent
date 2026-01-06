@@ -35,10 +35,18 @@ def build_pedantix_prompt(
 OBJECTIF
 Identifier le TITRE d’un article Wikipédia en proposant des mots pertinents à tester.
 
-RÈGLES
-- Le texte correspond au DÉBUT d’un article Wikipédia.
-- Mots cachés: ⟦wXX~N⟧ (N = longueur approximative)
-- Les mots visibles sont déjà découverts.
+CONTEXTE DU JEU
+- Le texte correspond au DÉBUT d'un article Wikipédia.
+- Certains mots sont déjà révélés et apparaissent normalement.
+- Certains mots sont remplacés par des placeholders :
+  - ⟦wXX~N⟧ : mot caché, longueur approximative N.
+  - ⟨mot?~N⟩ : indice sémantique (HINT), ce n'’'est PAS le vrai mot.
+    Le mot réel est différent mais sémantiquement proche.
+
+IMPORTANT SUR LES HINTS
+- Les HINTS indiquent des zones de sens (thème, champ lexical).
+- Ils ne doivent JAMAIS être proposés tels quels comme réponses.
+- Utilise-les uniquement pour inférer le sujet de l'article.
 
 ÉTAT ACTUEL
 
@@ -46,20 +54,22 @@ TITRE :
 {title_text}
 
 ARTICLE :
-{article}
+{article[:10000]}
 
-MOTS DÉJÀ TESTÉS (NE PAS PROPOSER) :
+MOTS DÉJÀ TESTÉS (INTERDITS) :
 {tested}
 
 CONTRAINTES STRICTES
 - Ne propose PAS de mots déjà visibles dans le texte.
 - Ne propose PAS de mots déjà testés.
-- Évite les mots grammaticaux/génériques.
-- Noms propres autorisés. Français uniquement. Tous distincts.
+- Ne propose PAS les mots apparaissant dans les HINTS (⟨mot?~N⟩), uniquement des mots PROCHES SEMANTIQUEMENT.
+- Français uniquement.
+- Tous les mots doivent être distincts.
+- Si un mot contient des accents, les accents doivent être présents
+- Tu à le droit de proposer des noms propres (pays, personnes, personnage, oeuvres...) ainsi que des années (au format nombre, par exemple "1954")
 
 TÂCHE
-Propose exactement 10 mots pertinents à tester ensuite.
-
+Propose EXACTEMENT 10 mots pertinents à tester ensuite, sous forme d'une simple liste.
 """
 
 
@@ -142,6 +152,7 @@ class PedantixLLM:
             article_text=article_text,
             tested_words=tested_words,
         )
+        print(f"PROMPT {prompt}")
 
         resp = self.client.responses.parse(
             model=self.model,
