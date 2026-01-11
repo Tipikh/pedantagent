@@ -4,15 +4,15 @@ from playwright.sync_api import sync_playwright
 from rich import print
 
 from .agent import PedantAgent
-from .config import Settings, Selectors
+from .config import Settings, Selectors, RateLimit
 from .web_client import PedantixWebClient
 from .words import warmup_words
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="pedantagent", description="Polite Pedantix agent (rate-limited).")
     p.add_argument("--headless", action="store_true", help="Run browser headless.")
-    p.add_argument("--max", type=int, default=200, help="Max guesses.")
-    p.add_argument("--rate", type=float, default=1.0, help="Base seconds between guesses.")
+    p.add_argument("--max", type=int, default=Settings().max_guesses, help="Max guesses.")
+    p.add_argument("--rate", type=float, default=RateLimit().base_seconds, help="Base seconds between guesses.")
     p.add_argument("--input", dest="guess_input", default=Selectors().guess_input, help="CSS selector for guess input.")
     p.add_argument("--title", dest="title_container", default=Selectors().title_container, help="CSS selector for title container.")
     p.add_argument("--article", dest="article_container", default=Selectors().article_container, help="CSS selector for article container.")

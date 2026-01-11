@@ -18,6 +18,6 @@ class RateLimit:
 class Settings:
     url: str = "https://pedantix.certitudes.org/"
     headless: bool = False
-    max_guesses: int = 200
+    max_guesses: int = 10
     selectors: Selectors = Selectors()
     rate: RateLimit = RateLimit()
